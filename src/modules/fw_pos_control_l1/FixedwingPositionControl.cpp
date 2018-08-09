@@ -110,6 +110,22 @@ FixedwingPositionControl::~FixedwingPositionControl()
 	perf_free(_loop_perf);
 }
 
+//zhang
+void FixedwingPositionControl::location_offset(struct Location &loc, float ofs_north, float ofs_east)
+{
+        int32_t dlat = ofs_north * LOCATION_SCALING_FACTOR_INV;
+        int32_t dlon = (ofs_east * LOCATION_SCALING_FACTOR_INV) / longitude_scale(loc);
+        loc.lat += dlat;
+        loc.lon += dlon;
+}
+float FixedwingPositionControl::longitude_scale(const struct Location &loc)
+{
+
+    float scale =cosf((float)loc.lat * 1.0e-7f * DEG_TO_RAD);
+    return constrain(scale, 0.01f, 1.0f);  //做限制 把scale 限制在0.01和1.0之间
+
+}
+
 int
 FixedwingPositionControl::parameters_update()
 {
@@ -373,7 +389,77 @@ FixedwingPositionControl::position_setpoint_triplet_poll()
 
 	if (pos_sp_triplet_updated) {
 		orb_copy(ORB_ID(position_setpoint_triplet), _pos_sp_triplet_sub, &_pos_sp_triplet);
+
 	}
+
+
+
+}
+//zhang
+void
+FixedwingPositionControl::master_slave_control_poll()
+{
+    /* check if there is a new setpoint */
+    bool master_slave_control_updated;
+    struct Location loc;
+    float ofs_north =10;
+    float ofs_east = 10;
+    orb_check(_communication_sub, &master_slave_control_updated);
+    if (master_slave_control_updated) {
+        orb_copy(ORB_ID(master_slave_control), _communication_sub, &receive_msg);
+     /* warnx("The lon of privious is %f\n",receive_msg.send_triplet.previous.lon*1000);
+        warnx("The lat of privious is %f\n",receive_msg.send_triplet.previous.lat*1000);
+        warnx("The lon of current is %f\n",receive_msg.send_triplet.current.lon*1000);
+        warnx("The lat of current is %f\n",receive_msg.send_triplet.current.lat*1000);
+        warnx("The lon of next is %f\n",receive_msg.send_triplet.next.lon*1000);
+     */
+        //memory_copy(_pos_sp_triplet,receive_msg.send_triplet)
+       _pos_sp_triplet = receive_msg.send_triplet;
+       _master_lat =  receive_msg.lat;
+       _master_lon =  receive_msg.lon;
+   /*   warnx("slave_control_updated");
+      warnx("The lon of privious is %f\n",_pos_sp_triplet.previous.lon*10000000);
+      warnx("The lat of privious is %f\n",_pos_sp_triplet.previous.lat*10000000);
+      warnx("The lon of current is %f\n",_pos_sp_triplet.current.lon*10000000);
+      warnx("The lat of current is %f\n",_pos_sp_triplet.current.lat*10000000);
+      warnx("The lon of next is %f\n",_pos_sp_triplet.next.lon*10000000);
+      warnx("The lat of next is %f\n",_pos_sp_triplet.next.lat*10000000);
+      */
+       loc.lat=(int32_t)(_master_lat*10000000);
+       loc.lon=(int32_t)(_master_lon*10000000);
+       location_offset(loc, ofs_north, ofs_east);
+       _master_lat=(double)loc.lat/10000000;
+       _master_lon=(double)loc.lon/10000000;
+
+
+//previous
+    loc.lat=(int32_t)(_pos_sp_triplet.previous.lat*10000000);
+    loc.lon=(int32_t)(_pos_sp_triplet.previous.lon*10000000);
+    location_offset(loc, ofs_north, ofs_east);
+    _pos_sp_triplet.previous.lat=(double)loc.lat/10000000;
+    _pos_sp_triplet.previous.lon=(double)loc.lon/10000000;
+//current
+    loc.lat=(int32_t)(_pos_sp_triplet.current.lat*10000000);
+    loc.lon=(int32_t)(_pos_sp_triplet.current.lon*10000000);
+    location_offset(loc, ofs_north, ofs_east);
+    _pos_sp_triplet.current.lat=(double)loc.lat/10000000;
+    _pos_sp_triplet.current.lon=(double)loc.lon/10000000;
+//next
+    loc.lat=(int32_t)(_pos_sp_triplet.next.lat*10000000);
+    loc.lon=(int32_t)(_pos_sp_triplet.next.lon*10000000);
+    location_offset(loc, ofs_north, ofs_east);
+    _pos_sp_triplet.next.lat=(double)loc.lat/10000000;
+    _pos_sp_triplet.next.lon=(double)loc.lon/10000000;
+
+  /*   warnx("later The lon of privious is %f\n",_pos_sp_triplet.previous.lon*10000000);
+     warnx("later The lat of privious is %f\n",_pos_sp_triplet.previous.lat*10000000);
+     warnx("later The lon of current is %f\n",_pos_sp_triplet.current.lon*10000000);
+     warnx("later The lat of current is %f\n",_pos_sp_triplet.current.lat*10000000);
+     warnx("later The lon of next is %f\n",_pos_sp_triplet.next.lon*10000000);
+     warnx("later The lat of next is %f\n",_pos_sp_triplet.next.lat*10000000);
+     */
+        }
+
 }
 
 float
@@ -751,7 +837,19 @@ FixedwingPositionControl::control_position(const Vector2f &curr_pos, const Vecto
 			_l1_control.navigate_waypoints(prev_wp, curr_wp, curr_pos, nav_speed_2d);
 			_att_sp.roll_body = _l1_control.nav_roll();
 			_att_sp.yaw_body = _l1_control.nav_bearing();
+//xu
+            if (slave > 1)
+            {
+            double d_n,d_e;
+            float pram_speed = 0.2;
+            param_get(param_find("FORMATION_SCALE"),&pram_speed);
 
+            d_n = (_master_lat - _global_pos.lat)/(double)LOCATION_SCALING_FACTOR_INV*10000000;
+            d_e = (_master_lon - _global_pos.lon)/(double)LOCATION_SCALING_FACTOR_INV*10000000;
+           double result_1 =(double)_global_pos.vel_n*d_n+(double)_global_pos.vel_e*d_e;
+           double result=result_1 /sqrt(_global_pos.vel_n*_global_pos.vel_n+_global_pos.vel_e*_global_pos.vel_e);
+           mission_airspeed+=(float)result*pram_speed;
+            }
 			tecs_update_pitch_throttle(pos_sp_curr.alt,
 						   calculate_target_airspeed(mission_airspeed),
 						   radians(_parameters.pitch_limit_min) - _parameters.pitchsp_offset_rad,
@@ -1524,12 +1622,23 @@ FixedwingPositionControl::handle_command()
 void
 FixedwingPositionControl::run()
 {
+
+    param_get(param_find("FORMATION_NUM"),&slave);
 	/*
 	 * do subscriptions
 	 */
 	_global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 	_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
-	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
+//zhang
+    if(slave > 0)
+    {
+      _communication_sub = orb_subscribe(ORB_ID(master_slave_control));
+    }
+    else
+    {
+      _pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
+    }
+
 	_control_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
 	_vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
@@ -1565,10 +1674,8 @@ FixedwingPositionControl::run()
 
 	/* Setup of loop */
 	fds[0].fd = _global_pos_sub;
-	fds[0].events = POLLIN;
-
-	while (!should_exit()) {
-
+    fds[0].events = POLLIN;
+    while (!should_exit()) {
 		/* wait for up to 500ms for data */
 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 100);
 
@@ -1617,7 +1724,7 @@ FixedwingPositionControl::run()
 				    && _global_pos.lat_lon_reset_counter != _pos_reset_counter) {
 
 					// reset heading hold flag, which will re-initialise position control
-					_hdg_hold_enabled = false;
+                    _hdg_hold_enabled = false;
 				}
 			}
 
@@ -1628,7 +1735,17 @@ FixedwingPositionControl::run()
 			_sub_sensors.update();
 			airspeed_poll();
 			manual_control_setpoint_poll();
-			position_setpoint_triplet_poll();
+// zhang
+            printf("position_control_run");
+           if(slave)
+           {
+           // printf("slave_run");
+            master_slave_control_poll();
+           }
+           else
+           {
+            position_setpoint_triplet_poll();
+           }
 			vehicle_attitude_poll();
 			vehicle_command_poll();
 			vehicle_control_mode_poll();
@@ -1646,7 +1763,7 @@ FixedwingPositionControl::run()
 				_att_sp.timestamp = hrt_absolute_time();
 
 				// add attitude setpoint offsets
-				_att_sp.roll_body += _parameters.rollsp_offset_rad;
+                _att_sp.roll_body += _parameters.rollsp_offset_rad;  // set roll_body have no output
 				_att_sp.pitch_body += _parameters.pitchsp_offset_rad;
 
 				if (_control_mode.flag_control_manual_enabled) {

@@ -85,6 +85,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/uORB.h>
 #include <vtol_att_control/vtol_type.h>
+#include <interaircraft_communication/interaircraft_communication.h>
 
 static constexpr float HDG_HOLD_DIST_NEXT =
 	3000.0f; // initial distance of waypoint in front of plane in heading hold mode
@@ -104,6 +105,25 @@ static constexpr float MANUAL_THROTTLE_CLIMBOUT_THRESH =
 static constexpr float ALTHOLD_EPV_RESET_THRESH = 5.0f;
 
 static constexpr float MSL_PRESSURE_MILLIBAR = 1013.25f; ///< standard atmospheric pressure in millibar
+
+
+//zhang
+#define DEG_TO_RAD 0.017453292519943295769236907684886f
+#define LOCATION_SCALING_FACTOR 0.011131884502145034f
+#define LOCATION_SCALING_FACTOR_INV 89.83204953368922f
+
+struct  Location {
+ /*   union {
+        Location_Option_Flags flags;                    ///< options bitmask (1<<0 = relative altitude)
+        uint8_t options;                                /// allows writing all flags to eeprom as one byte
+    };
+    int32_t alt:24;                                     ///< param 2 - Altitude in centimeters (meters * 100)
+    */
+    int32_t lat;                                        ///< param 3 - Lattitude * 10**7
+    int32_t lon;                                        ///< param 4 - Longitude * 10**7
+};
+
+
 
 using math::constrain;
 using math::max;
@@ -161,7 +181,9 @@ private:
 	int		_params_sub{-1};			///< notification of parameter updates */
 	int		_manual_control_sub{-1};		///< notification of manual control updates */
 	int		_sensor_baro_sub{-1};
-
+    //zhang
+    int     _communication_sub{-1};          ///communication between cluster
+    master_slave_control_s receive_msg;
 	orb_advert_t	_attitude_sp_pub{nullptr};		///< attitude setpoint */
 	orb_advert_t	_tecs_status_pub{nullptr};		///< TECS status publication */
 	orb_advert_t	_fw_pos_ctrl_status_pub{nullptr};	///< navigation capabilities publication */
@@ -197,7 +219,12 @@ private:
 	position_setpoint_s _hdg_hold_curr_wp {};		///< position to which heading hold flies */
 
 	hrt_abstime _control_position_last_called{0};		///< last call of control_position  */
-
+//zhang
+    void location_offset(struct Location &loc, float ofs_north, float ofs_east);
+    float longitude_scale(const struct Location &loc);
+    double _master_lat;
+    double _master_lon;
+    int slave;
 	/* Landing */
 	bool _land_noreturn_horizontal{false};
 	bool _land_noreturn_vertical{false};
@@ -399,6 +426,9 @@ private:
 
 	// publish navigation capabilities
 	void		fw_pos_ctrl_status_publish();
+
+    //zhang
+    void        master_slave_control_poll();
 
 	/**
 	 * Get a new waypoint based on heading and distance from current position

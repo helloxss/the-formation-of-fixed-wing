@@ -90,6 +90,7 @@ add_custom_command(OUTPUT ${parameters_xml}
 		#--verbose
 	DEPENDS
 		${param_src_files}
+		#${PX4_SOURCE_DIR}/src/modules/interaircraft_communication/interaircraft_communication_params.c
 		parameters_injected.xml
 		px4params/srcparser.py
 		px4params/srcscanner.py

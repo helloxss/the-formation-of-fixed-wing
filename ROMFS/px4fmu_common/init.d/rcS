@@ -961,6 +961,7 @@ then
 
 	sh /etc/init.d/rc.logging
 
+
 # End of autostart
 fi
 

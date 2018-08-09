@@ -7,7 +7,7 @@ set(config_module_list
 	# Board support modules
 	#
 	#drivers/barometer
-	drivers/differential_pressure
+        #drivers/differential_pressure
 	#drivers/magnetometer
 	#drivers/telemetry
 
@@ -19,7 +19,7 @@ set(config_module_list
 	#drivers/barometer/bmp280
 	drivers/boards
 	#drivers/bst
-	drivers/camera_trigger
+        #drivers/camera_trigger
 	drivers/device
 	#drivers/frsky_telemetry
 	drivers/gps
@@ -34,12 +34,12 @@ set(config_module_list
 	#drivers/mb12xx
 	#drivers/mkblctrl
 	drivers/imu/mpu6000
-	drivers/imu/mpu9250
+        #drivers/imu/mpu9250
 	#drivers/oreoled
 	#drivers/protocol_splitter
 	drivers/pwm_input
 	#drivers/pwm_out_sim
-	drivers/px4flow
+        #drivers/px4flow
 	drivers/px4fmu
 	drivers/px4io
 	drivers/rgbled
@@ -50,10 +50,10 @@ set(config_module_list
 	drivers/vmount
 
 	# distance sensors
-	drivers/distance_sensor/ll40ls
-	drivers/distance_sensor/mb12xx
-	drivers/distance_sensor/sf0x
-	drivers/distance_sensor/sf1xx
+	#drivers/distance_sensor/ll40ls #
+	#drivers/distance_sensor/mb12xx #
+	#drivers/distance_sensor/sf0x #
+	#drivers/distance_sensor/sf1xx #
 	drivers/distance_sensor/srf02
 	drivers/distance_sensor/srf02_i2c
 	drivers/distance_sensor/teraranger
@@ -101,7 +101,7 @@ set(config_module_list
 	#
 	# General system control
 	#
-	modules/camera_feedback
+        #modules/camera_feedback
 	modules/commander
 	modules/events
 	#modules/gpio_led
@@ -110,6 +110,7 @@ set(config_module_list
 	modules/mavlink
 	modules/navigator
 	#modules/uavcan
+        modules/interaircraft_communication
 
 	#
 	# Estimation modules
@@ -128,9 +129,9 @@ set(config_module_list
 	modules/fw_pos_control_l1
 	#modules/gnd_att_control
 	#modules/gnd_pos_control
-	modules/mc_att_control
-	modules/mc_pos_control
-	modules/vtol_att_control
+        modules/mc_att_control
+        modules/mc_pos_control
+        modules/vtol_att_control
 
 	#
 	# Logging
@@ -182,10 +183,12 @@ set(config_module_list
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
 	#examples/px4_simple_app
+        examples/uart_test
 
 	# Tutorial code from
 	# https://px4.io/dev/debug_values
 	#examples/px4_mavlink_debug
+        #examples/pos_mavlink_send
 
 	# Tutorial code from
 	# https://px4.io/dev/example_fixedwing_control

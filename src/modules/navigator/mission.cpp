@@ -58,7 +58,12 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
-
+#include <systemlib/param/param.h>
+#include <uORB/topics/parameter_update.h>
+//#include <uORB/topics/master_slave_control.h>
+#include <uORB/topics/position_setpoint.h>
+#include <uORB/topics/position_setpoint_triplet.h>
+#include <interaircraft_communication/interaircraft_communication.h>
 Mission::Mission(Navigator *navigator) :
 	MissionBlock(navigator),
 	ModuleParams(navigator)
@@ -147,6 +152,7 @@ Mission::on_inactivation()
 void
 Mission::on_activation()
 {
+
 	set_mission_items();
 
 	// unpause triggering if it was paused
@@ -421,6 +427,11 @@ Mission::get_absolute_altitude_for_item(struct mission_item_s &mission_item)
 void
 Mission::set_mission_items()
 {
+    //zhang
+  /*
+   * int slave;
+    param_get(param_find("FORMATION_NUM"),&slave);
+   */
 	/* reset the altitude foh (first order hold) logic, if altitude foh is enabled (param) a new foh element starts now */
 	_min_current_sp_distance_xy = FLT_MAX;
 
@@ -466,7 +477,34 @@ Mission::set_mission_items()
 		set_loiter_item(&_mission_item, _navigator->get_takeoff_min_alt());
 
 		/* update position setpoint triplet  */
-		position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+        position_setpoint_triplet_s *pos_sp_triplet;
+        //zhang
+/*        if(slave)
+        {
+           //orb_publish(ORB_ID(master_slave_control), _communication_pub, &_receive_msg);
+            int master_pos_sub = orb_subscribe(ORB_ID(master_slave_control));
+            master_slave_control_s  _receive_msg;
+            double lat_cluster_offset = 10;
+            double lon_cluster_offset = 10;
+            bool updated = false;
+            orb_check(master_pos_sub , &updated);
+            if (updated) {
+                orb_copy(ORB_ID(master_slave_control), master_pos_sub, &_receive_msg);
+            }
+            pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+            //position_setpoint_s pos_sp_current = pos_sp_triplet->current;
+            //os_sp_current.lat  =_receive_msg.cur_lat + lat_cluster_offset;
+            //pos_sp_current.lon  =_receive_msg.cur_lng + lon_cluster_offset;
+            //pos_sp_triplet->current=pos_sp_current;
+            pos_sp_triplet->current.lat =_receive_msg.cur_lat + lat_cluster_offset;
+            pos_sp_triplet->current.lon =_receive_msg.cur_lng + lon_cluster_offset;
+        };
+
+        }
+        else
+  */
+          pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+
 		pos_sp_triplet->previous.valid = false;
 		mission_apply_limitation(_mission_item);
 		mission_item_to_position_setpoint(_mission_item, &pos_sp_triplet->current);
